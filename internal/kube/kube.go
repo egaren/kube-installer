@@ -43,12 +43,69 @@ func DeployK3sCluster(version string, nodeAddr string) error {
 			return err
 		}
 	}
-	// Step 5 - Start service
+	// Step 5 - Reload Daemon
+	if v {
+		if err = k.ReloadDaemon(); err != nil {
+			return err
+		}
+	}
+	// Step 6 - Start service
 	if v {
 		if err = k.StartService(); err != nil {
 			return err
 		}
 	}
+	// Step 7 - Enable Service
+	if v {
+		if err = k.EnableService(); err != nil {
+			return err
+		}
+	}
+	// Step 8 - Cleanup
+	if v {
+		if err = k.Remove(true); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
+func UpgradeK3sCluster(version string) error {
+	// Step 1 - Get packages
+	k := k3s.NewK3sBuilder(version, "")
+	err := k.GetBinary()
+	if err != nil {
+		return err
+	}
+	// Step 2 - Validate packages
+	v, err := k.ValidateBinary()
+	if err != nil {
+		return err
+	}
+	// Step 3 - Stop Service
+	if v {
+		if err = k.StopService(); err != nil {
+			return err
+		}
+	}
+	// Step 3 - Upgrades
+	if v {
+		err = k.InstallBinary()
+		if err != nil {
+			return err
+		}
+	}
+	// Step 4 - Starts service
+	if v {
+		if err = k.StartService(); err != nil {
+			return err
+		}
+	}
+	// Step 5 - Cleanup
+	if v {
+		if err = k.Remove(true); err != nil {
+			return err
+		}
+	}
 	return nil
 }

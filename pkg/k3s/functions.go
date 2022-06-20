@@ -57,12 +57,14 @@ func (k *K3s) CreateFiles() error {
 // GetBinary - downloads binary
 func (k *K3s) GetBinary() error {
 	url, fileName := buildUrl(k.version, binaryName)
-	err := downloader.DownloadFile("/tmp/"+fileName, url)
+	filePath := fmt.Sprintf("%s/%s", downloadPath, fileName)
+	err := downloader.DownloadFile(filePath, url)
 	if err != nil {
 		return err
 	}
 	url, fileName = buildUrl(k.version, shaSumName)
-	err = downloader.DownloadFile("/tmp/"+fileName, url)
+	filePath = fmt.Sprintf("%s/%s", downloadPath, fileName)
+	err = downloader.DownloadFile(filePath, url)
 	if err != nil {
 		return err
 	}
@@ -164,19 +166,69 @@ func (k *K3s) InstallService() error {
 	return nil
 }
 
-// StartService - starts k3s service
-func (k *K3s) StartService() error {
+// ReloadDaemon - reloads daemon
+func (k *K3s) ReloadDaemon() error {
 	systemdClient := systemd.NewSystemdClient()
 	//reload daemon
 	if err := systemdClient.Reload(); err != nil {
 		return err
 	}
+	return nil
+}
+
+// StartService - starts k3s service
+func (k *K3s) StartService() error {
+	systemdClient := systemd.NewSystemdClient()
 	unit := fmt.Sprintf("%s.service", binaryName)
 	if err := systemdClient.Start(unit); err != nil {
 		return err
 	}
+	return nil
+}
+
+// EnableService - enables k3s service
+func (k *K3s) EnableService() error {
+	systemdClient := systemd.NewSystemdClient()
+	unit := fmt.Sprintf("%s.service", binaryName)
 	if err := systemdClient.Enable(unit); err != nil {
 		return err
+	}
+	return nil
+}
+
+// StopService - stops k3s service
+func (k *K3s) StopService() error {
+	systemdClient := systemd.NewSystemdClient()
+	unit := fmt.Sprintf("%s.service", binaryName)
+	if err := systemdClient.Stop(unit); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Remove - removes garbage
+func (k *K3s) Remove(temp bool) error {
+	switch temp {
+	case true:
+		binarySourcePath := buildFilePath(binaryName, downloadPath)
+		shaPath := fmt.Sprintf("%s/%s-%s.txt", downloadPath, shaSumName, checkArchitecture())
+		if err := os.Remove(binarySourcePath); err != nil {
+			return err
+		}
+		if err := os.Remove(shaPath); err != nil {
+			return err
+		}
+	case false:
+		service := fmt.Sprintf("%s/%s.service", systemDirectory, binaryName)
+		confDir := "/etc/rancher"
+		err := os.Remove(service)
+		if err != nil {
+			return err
+		}
+		err = os.RemoveAll(confDir)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
